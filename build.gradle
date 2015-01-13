@@ -1,0 +1,51 @@
+apply plugin: 'com.android.library'
+apply plugin: 'maven'
+
+android {
+    compileSdkVersion 21
+    buildToolsVersion "21.1.2"
+
+    defaultConfig {
+        minSdkVersion 3
+        targetSdkVersion 3
+        versionCode 1
+        versionName "1.0.0"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile 'com.android.support:appcompat-v7:21.0.3'
+}
+
+def DefaultTask masterTask = project.tasks.create("publish", DefaultTask)
+
+android.libraryVariants.all { variant ->
+    variant.outputs.each { output ->
+
+        // Configuration defines which artifacts will be published, create one configuration
+        // for each variant output (artifact)
+        def Configuration variantConfiguration = project.configurations.create("${variant.name}Archives")
+        project.artifacts.add(variantConfiguration.name, output.packageLibrary)
+
+        // Create one Upload type task for each configuration
+        def Upload variantTask = project.tasks.create("${variant.name}Install", Upload)
+        variantTask.configuration = variantConfiguration
+        variantTask.repositories.mavenInstaller {
+            pom.groupId = "com.axis4.android"
+            pom.artifactId = "serialport"
+            pom.version = "${project.android.defaultConfig.versionName}-${variant.name}" //Give a different version for each variant
+            pom.packaging = "aar"
+        }
+
+        // Make all tasks depend on each other and on master task
+        masterTask.dependsOn variantTask
+        masterTask = variantTask
+    }
+}
